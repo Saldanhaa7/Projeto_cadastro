@@ -5,6 +5,7 @@ using System.Net;
 using System.IO;
 using Microsoft.VisualBasic.FileIO;
 using Newtonsoft.Json;
+using System.ComponentModel.Design;
 
 class Program
 {
@@ -65,10 +66,25 @@ class Program
                 Console.WriteLine("Digite Status (em dia ou atrasado) do financiamento:");
                 string statusdofinanciamento = Console.ReadLine();
 
-                Carro carro = new Carro(modelo, ano, comprador, cpf, aniversario, compra, parcela, valor, statusdofinanciamento);
+                Carro carro = new Carro(modelo, marca, ano, comprador, cpf, aniversario, compra, parcela, valor, statusdofinanciamento);
                 carros.Add(carro);
 
                 Console.WriteLine("Carro cadastrado com sucesso!");
+
+                if(comprador is not null):
+                    PythonBanco api = new PythonBanco();
+                    bool cad = api.cadastro(carro.modelo, carro.marca, carro.ano, carro.comprador, carro.cpf, carro.aniversario, carro.compra, carro.parcela, carro.valor, carro.statusdofinanciamento);
+
+                    if (cad)
+                    {
+                        Console.WriteLine("Carro cadastrado no banco de dados!");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Não foi possivel cadastrar o carro!");
+                    }
+                else:
+                    console.WriteLine("aaaaa")
             }
             else if (opcao == 2)
             {
@@ -132,17 +148,40 @@ class PythonAPI
             writer.Write(dados);
         }
 
-        HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-        string Body = "";
+        HttpClient usuario = new HttpClient();
+        HttpResponseMessage response = await usuario.GetAsync(url);
 
-        using (StreamReader reader = new StreamReader(response.GetResponseStream()))
-        {
-            Body = reader.ReadToEnd();
-        }
+        string pagina = await response.Content.ReadAsStringAsync();
 
-        // Converte o resultado da API de JSON para um objeto dinâmico
-        dynamic resultado = JsonConvert.DeserializeObject(Body);
+
+        var resultado = JsonConvert.DeserializeObject(pagina);
 
         return (bool)resultado.financiamento_regular;
+    }
+}
+
+class PythonBanco
+{
+    private HttpClient usuario;
+
+    public PythonBanco()
+    {
+        usuario = new HttpClient();
+    }
+
+    public async Task<bool> cadastro(string modelo, string marca, int ano, string comprador, string cpf, string aniversario, string compra, int parcela, double valor, string statusdofinanciamento)
+    {
+        string url = "http://localhost:5000/cadastro";
+        string dados = $"Modelo={modelo}&Marca={marca}&Ano={ano}&Comprador={comprador}&Cpf={cpf}&Aniversario={aniversario}&" +
+            $"Compra={compra}&Parcela={parcela}&Valor={valor}&status_financiamento={statusdofinanciamento}";
+
+        var content = new StringContent(dados, Encoding.UTF8, "application/x-www-form-urlencoded");
+        var response = await usuario.PostAsync(url, content);
+
+        string pagina = await response.Content.ReadAsStringAsync();
+
+        var resultado = JsonConvert.DeserializeObject(pagina);
+
+        return (bool)resultado.situacao;
     }
 }
